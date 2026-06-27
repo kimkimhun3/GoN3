@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>N3 単語帳 — JLPT N3 Kanji Words</title>
+<style>
+  :root{
+    --paper:#F6F3EC;
+    --paper-2:#FBF9F4;
+    --ink:#2A2723;
+    --ink-soft:#6B645B;
+    --line:#E2DCD0;
+    --ai:#24405E;      /* 藍 indigo */
+    --shu:#BC3B2E;     /* 朱 vermilion */
+    --gold:#A8884C;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    line-height:1.5;
+    padding-bottom:80px;
+  }
+  .jp{font-family:"Hiragino Mincho ProN","Yu Mincho",YuMincho,"Noto Serif JP",serif;}
+  .jp-g{font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;}
+
+  /* ---- header ---- */
+  header{
+    position:relative;
+    padding:34px 20px 22px;
+    border-bottom:1px solid var(--line);
+    background:var(--paper-2);
+  }
+  .wrap{max-width:1020px;margin:0 auto}
+  .eyebrow{
+    font-size:12px;letter-spacing:.28em;text-transform:uppercase;
+    color:var(--ai);font-weight:600;margin-bottom:6px;
+  }
+  h1{
+    font-size:clamp(28px,6vw,42px);font-weight:700;letter-spacing:-.01em;
+    display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+  }
+  h1 .kanji{font-size:1.15em;color:var(--ink)}
+  h1 .en{font-size:.52em;font-weight:500;color:var(--ink-soft);letter-spacing:.02em}
+  .seal{
+    position:absolute;top:26px;right:20px;
+    width:54px;height:54px;border:2px solid var(--shu);border-radius:8px;
+    color:var(--shu);display:flex;align-items:center;justify-content:center;
+    font-size:30px;transform:rotate(-4deg);opacity:.9;
+  }
+  @media(max-width:520px){.seal{display:none}}
+
+  /* ---- progress ---- */
+  .progress-row{display:flex;align-items:center;gap:12px;margin-top:18px;font-size:13px;color:var(--ink-soft)}
+  .bar{flex:1;height:6px;background:var(--line);border-radius:99px;overflow:hidden}
+  .bar > i{display:block;height:100%;width:0;background:var(--ai);transition:width .35s ease}
+  .pct{font-variant-numeric:tabular-nums;font-weight:600;color:var(--ai)}
+
+  /* ---- controls ---- */
+  .controls{max-width:1020px;margin:18px auto 0;padding:0 20px;display:flex;flex-direction:column;gap:14px}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .search{
+    flex:1;min-width:180px;display:flex;align-items:center;gap:8px;
+    background:var(--paper-2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;
+  }
+  .search input{border:0;background:transparent;outline:0;font-size:15px;color:var(--ink);width:100%}
+  .search svg{flex:none;opacity:.5}
+  .btn{
+    border:1px solid var(--line);background:var(--paper-2);color:var(--ink);
+    padding:9px 14px;border-radius:10px;font-size:14px;cursor:pointer;font-weight:500;
+    transition:all .15s ease;white-space:nowrap;
+  }
+  .btn:hover{border-color:var(--ai);color:var(--ai)}
+  .btn.on{background:var(--ai);border-color:var(--ai);color:#fff}
+  .btn.shu.on{background:var(--shu);border-color:var(--shu)}
+
+  /* ---- category pills ---- */
+  .cats{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+  .cats::-webkit-scrollbar{height:0}
+  .pill{
+    border:1px solid var(--line);background:transparent;color:var(--ink-soft);
+    padding:6px 13px;border-radius:99px;font-size:13px;cursor:pointer;white-space:nowrap;
+    transition:all .15s ease;
+  }
+  .pill:hover{color:var(--ai)}
+  .pill.on{background:var(--ink);color:var(--paper-2);border-color:var(--ink)}
+  .pill .n{opacity:.55;font-size:.85em;margin-left:4px}
+
+  /* ---- grid ---- */
+  main{max-width:1020px;margin:22px auto 0;padding:0 20px}
+  .group-title{
+    font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);
+    font-weight:700;margin:26px 0 12px;display:flex;align-items:center;gap:10px;
+  }
+  .group-title::after{content:"";flex:1;height:1px;background:var(--line)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px}
+  .card{
+    background:var(--paper-2);border:1px solid var(--line);border-radius:12px;
+    padding:16px 16px 14px;position:relative;cursor:pointer;
+    transition:transform .12s ease,box-shadow .15s ease,border-color .15s ease;
+    overflow:hidden;
+  }
+  .card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(42,39,35,.07);border-color:#d2cabb}
+  .card .kanji{font-size:30px;font-weight:700;letter-spacing:.02em;color:var(--ink);line-height:1.15}
+  .card .read{font-size:15px;color:var(--ai);margin-top:4px;min-height:22px;transition:opacity .15s}
+  .card .mean{font-size:13px;color:var(--ink-soft);margin-top:6px;min-height:18px;transition:opacity .15s}
+  body.hide-read .card:not(.peek) .read,
+  body.hide-mean .card:not(.peek) .mean{opacity:0}
+  .card .hint{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+    font-size:12px;color:var(--ink-soft);pointer-events:none}
+  body.hide-read .card:not(.peek):hover .kanji{opacity:.25;transition:opacity .15s}
+  /* learned stamp */
+  .stamp{
+    position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:6px;
+    border:1.5px solid var(--line);color:transparent;display:flex;align-items:center;
+    justify-content:center;font-size:13px;transition:all .15s ease;
+  }
+  .card.learned{border-color:#d8c4ad;background:linear-gradient(135deg,#FBF9F4,#F6EFE4)}
+  .card.learned .stamp{border-color:var(--shu);color:var(--shu);font-family:serif}
+
+  .empty{text-align:center;color:var(--ink-soft);padding:60px 20px;font-size:15px}
+
+  /* ---- flashcard overlay ---- */
+  .fc{
+    position:fixed;inset:0;background:rgba(34,31,27,.55);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;z-index:50;padding:20px;
+  }
+  .fc.show{display:flex}
+  .fc-inner{width:100%;max-width:440px}
+  .fc-meta{display:flex;justify-content:space-between;align-items:center;color:#fff;margin-bottom:14px;font-size:13px}
+  .fc-close{background:rgba(255,255,255,.15);border:0;color:#fff;width:34px;height:34px;border-radius:8px;font-size:18px;cursor:pointer}
+  .flip{perspective:1200px;cursor:pointer}
+  .flip-in{position:relative;width:100%;min-height:300px;transition:transform .5s;transform-style:preserve-3d}
+  .flip.flipped .flip-in{transform:rotateY(180deg)}
+  .face{
+    position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+    background:var(--paper-2);border-radius:18px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;padding:28px;text-align:center;
+    box-shadow:0 20px 50px rgba(0,0,0,.3);
+  }
+  .face.back{transform:rotateY(180deg)}
+  .face .big{font-size:64px;font-weight:700;color:var(--ink);line-height:1.1}
+  .face .read{font-size:26px;color:var(--ai);margin-top:8px}
+  .face .mean{font-size:18px;color:var(--ink-soft);margin-top:10px}
+  .face .tap{position:absolute;bottom:16px;font-size:12px;color:var(--ink-soft);opacity:.7}
+  .fc-actions{display:flex;gap:10px;margin-top:16px}
+  .fc-actions button{flex:1;padding:13px;border-radius:12px;border:0;font-size:15px;font-weight:600;cursor:pointer;color:#fff}
+  .again{background:#7a7066}
+  .know{background:var(--ai)}
+  .fc-done{background:var(--paper-2);border-radius:18px;padding:44px 28px;text-align:center}
+  .fc-done h3{font-size:22px;margin-bottom:8px}
+  .fc-done p{color:var(--ink-soft);margin-bottom:20px}
+  .fc-done button{background:var(--ai);color:#fff;border:0;padding:12px 22px;border-radius:10px;font-size:15px;cursor:pointer}
+
+  footer{max-width:1020px;margin:40px auto 0;padding:20px;color:var(--ink-soft);font-size:12px;text-align:center;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="eyebrow">JLPT N3 Vocabulary</div>
+    <h1><span class="kanji jp">N3 単語帳</span><span class="en">— Kanji words to remember</span></h1>
+    <div class="seal jp">學</div>
+    <div class="progress-row">
+      <span class="pct" id="pct">0%</span>
+      <div class="bar"><i id="barFill"></i></div>
+      <span id="learnedCount">0 / 0 learned</span>
+    </div>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="toolbar">
+    <label class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="search" type="text" placeholder="Search kanji, reading, or meaning…">
+    </label>
+    <button class="btn" id="toggleRead">Hide readings</button>
+    <button class="btn shu" id="toggleLearned">Hide learned</button>
+    <button class="btn on" id="flashBtn">▶ Flashcards</button>
+  </div>
+  <div class="cats" id="cats"></div>
+</div>
+
+<main id="main"></main>
+
+<footer>
+  <span id="total"></span> · Tap a card to reveal · Tap the corner stamp to mark as learned · Progress saves automatically
+</footer>
+
+<!-- Flashcard overlay -->
+<div class="fc" id="fc">
+  <div class="fc-inner">
+    <div class="fc-meta">
+      <span id="fcProg">1 / 1</span>
+      <button class="fc-close" id="fcClose">×</button>
+    </div>
+    <div id="fcBody"></div>
+  </div>
+</div>
+
+<script>
+// ---------- DATA ----------
+const WORDS = [
+  // People & relationships
+  ["相手","あいて","partner / opponent","People"],
+  ["彼","かれ","he / boyfriend","People"],
+  ["彼女","かのじょ","she / girlfriend","People"],
+  ["主人","しゅじん","husband / master","People"],
+  ["夫","おっと","husband","People"],
+  ["妻","つま","wife","People"],
+  ["親","おや","parent","People"],
+  ["孫","まご","grandchild","People"],
+  ["知り合い","しりあい","acquaintance","People"],
+  ["客","きゃく","guest / customer","People"],
+  ["仲","なか","relationship / terms","People"],
+  ["性格","せいかく","personality","People"],
+  ["態度","たいど","attitude","People"],
+
+  // Body & health
+  ["頭","あたま","head","Body & Health"],
+  ["顔","かお","face","Body & Health"],
+  ["髪","かみ","hair","Body & Health"],
+  ["首","くび","neck","Body & Health"],
+  ["肩","かた","shoulder","Body & Health"],
+  ["腕","うで","arm","Body & Health"],
+  ["指","ゆび","finger","Body & Health"],
+  ["背中","せなか","back (of body)","Body & Health"],
+  ["腰","こし","lower back / waist","Body & Health"],
+  ["血","ち","blood","Body & Health"],
+  ["涙","なみだ","tears","Body & Health"],
+  ["汗","あせ","sweat","Body & Health"],
+  ["健康","けんこう","health","Body & Health"],
+  ["病気","びょうき","illness","Body & Health"],
+  ["怪我","けが","injury","Body & Health"],
+  ["薬","くすり","medicine","Body & Health"],
+
+  // Time
+  ["昔","むかし","long ago","Time"],
+  ["将来","しょうらい","future","Time"],
+  ["過去","かこ","the past","Time"],
+  ["現在","げんざい","the present","Time"],
+  ["最近","さいきん","recently","Time"],
+  ["最初","さいしょ","the first","Time"],
+  ["最後","さいご","the last","Time"],
+  ["普段","ふだん","usually","Time"],
+  ["当時","とうじ","at that time","Time"],
+  ["期間","きかん","period / term","Time"],
+  ["期限","きげん","deadline / time limit","Time"],
+  ["締め切り","しめきり","deadline","Time"],
+
+  // Daily life
+  ["生活","せいかつ","life / living","Daily Life"],
+  ["習慣","しゅうかん","habit / custom","Daily Life"],
+  ["用事","ようじ","errand / business","Daily Life"],
+  ["準備","じゅんび","preparation","Daily Life"],
+  ["用意","ようい","preparation","Daily Life"],
+  ["掃除","そうじ","cleaning","Daily Life"],
+  ["洗濯","せんたく","laundry","Daily Life"],
+  ["留守","るす","absence (away)","Daily Life"],
+  ["引っ越し","ひっこし","moving house","Daily Life"],
+  ["近所","きんじょ","neighborhood","Daily Life"],
+
+  // Food
+  ["味","あじ","taste / flavor","Food"],
+  ["塩","しお","salt","Food"],
+  ["砂糖","さとう","sugar","Food"],
+  ["醤油","しょうゆ","soy sauce","Food"],
+  ["卵","たまご","egg","Food"],
+  ["豆","まめ","bean","Food"],
+  ["米","こめ","(uncooked) rice","Food"],
+  ["油","あぶら","oil","Food"],
+  ["皮","かわ","skin / peel","Food"],
+  ["食事","しょくじ","meal","Food"],
+  ["飲み物","のみもの","drink","Food"],
+
+  // Work & study
+  ["仕事","しごと","work / job","Work & Study"],
+  ["会議","かいぎ","meeting","Work & Study"],
+  ["給料","きゅうりょう","salary","Work & Study"],
+  ["残業","ざんぎょう","overtime","Work & Study"],
+  ["出張","しゅっちょう","business trip","Work & Study"],
+  ["面接","めんせつ","interview","Work & Study"],
+  ["履歴書","りれきしょ","résumé / CV","Work & Study"],
+  ["職業","しょくぎょう","occupation","Work & Study"],
+  ["経験","けいけん","experience","Work & Study"],
+  ["努力","どりょく","effort","Work & Study"],
+  ["成功","せいこう","success","Work & Study"],
+  ["失敗","しっぱい","failure","Work & Study"],
+  ["研究","けんきゅう","research","Work & Study"],
+  ["試験","しけん","exam","Work & Study"],
+  ["宿題","しゅくだい","homework","Work & Study"],
+  ["知識","ちしき","knowledge","Work & Study"],
+  ["能力","のうりょく","ability","Work & Study"],
+  ["結果","けっか","result","Work & Study"],
+  ["目的","もくてき","purpose","Work & Study"],
+  ["目標","もくひょう","goal","Work & Study"],
+
+  // Society & ideas
+  ["政治","せいじ","politics","Society & Ideas"],
+  ["経済","けいざい","economy","Society & Ideas"],
+  ["社会","しゃかい","society","Society & Ideas"],
+  ["法律","ほうりつ","law","Society & Ideas"],
+  ["自由","じゆう","freedom","Society & Ideas"],
+  ["文化","ぶんか","culture","Society & Ideas"],
+  ["歴史","れきし","history","Society & Ideas"],
+  ["情報","じょうほう","information","Society & Ideas"],
+  ["関係","かんけい","relation","Society & Ideas"],
+  ["影響","えいきょう","influence","Society & Ideas"],
+  ["原因","げんいん","cause","Society & Ideas"],
+  ["理由","りゆう","reason","Society & Ideas"],
+  ["方法","ほうほう","method","Society & Ideas"],
+  ["内容","ないよう","content","Society & Ideas"],
+  ["意見","いけん","opinion","Society & Ideas"],
+  ["問題","もんだい","problem","Society & Ideas"],
+  ["解決","かいけつ","solution","Society & Ideas"],
+  ["説明","せつめい","explanation","Society & Ideas"],
+  ["約束","やくそく","promise","Society & Ideas"],
+  ["計画","けいかく","plan","Society & Ideas"],
+  ["予定","よてい","schedule / plan","Society & Ideas"],
+  ["予約","よやく","reservation","Society & Ideas"],
+
+  // Money
+  ["値段","ねだん","price","Money"],
+  ["料金","りょうきん","fee / charge","Money"],
+  ["税金","ぜいきん","tax","Money"],
+  ["貯金","ちょきん","savings","Money"],
+  ["借金","しゃっきん","debt","Money"],
+  ["現金","げんきん","cash","Money"],
+  ["財布","さいふ","wallet","Money"],
+
+  // Nature
+  ["空気","くうき","air","Nature"],
+  ["自然","しぜん","nature","Nature"],
+  ["景色","けしき","scenery","Nature"],
+  ["太陽","たいよう","sun","Nature"],
+  ["星","ほし","star","Nature"],
+  ["海","うみ","sea","Nature"],
+  ["湖","みずうみ","lake","Nature"],
+  ["森","もり","forest","Nature"],
+  ["島","しま","island","Nature"],
+  ["岩","いわ","rock","Nature"],
+  ["砂","すな","sand","Nature"],
+  ["波","なみ","wave","Nature"],
+  ["雲","くも","cloud","Nature"],
+  ["雷","かみなり","thunder","Nature"],
+  ["虹","にじ","rainbow","Nature"],
+  ["環境","かんきょう","environment","Nature"],
+
+  // Travel & transport
+  ["交通","こうつう","traffic","Travel"],
+  ["渋滞","じゅうたい","traffic jam","Travel"],
+  ["事故","じこ","accident","Travel"],
+  ["駐車","ちゅうしゃ","parking","Travel"],
+  ["切符","きっぷ","ticket","Travel"],
+  ["道路","どうろ","road","Travel"],
+  ["信号","しんごう","traffic signal","Travel"],
+  ["観光","かんこう","sightseeing","Travel"],
+  ["旅行","りょこう","travel / trip","Travel"],
+  ["出発","しゅっぱつ","departure","Travel"],
+  ["到着","とうちゃく","arrival","Travel"],
+
+  // Verbs
+  ["増える","ふえる","to increase","Verbs"],
+  ["減る","へる","to decrease","Verbs"],
+  ["変わる","かわる","to change","Verbs"],
+  ["続く","つづく","to continue (intr.)","Verbs"],
+  ["続ける","つづける","to continue (tr.)","Verbs"],
+  ["決める","きめる","to decide","Verbs"],
+  ["集める","あつめる","to collect","Verbs"],
+  ["集まる","あつまる","to gather","Verbs"],
+  ["比べる","くらべる","to compare","Verbs"],
+  ["調べる","しらべる","to investigate","Verbs"],
+  ["育てる","そだてる","to raise","Verbs"],
+  ["伝える","つたえる","to convey","Verbs"],
+  ["覚える","おぼえる","to memorize","Verbs"],
+  ["忘れる","わすれる","to forget","Verbs"],
+  ["守る","まもる","to protect","Verbs"],
+  ["信じる","しんじる","to believe","Verbs"],
+  ["感じる","かんじる","to feel","Verbs"],
+  ["考える","かんがえる","to think","Verbs"],
+  ["選ぶ","えらぶ","to choose","Verbs"],
+  ["運ぶ","はこぶ","to carry","Verbs"],
+  ["喜ぶ","よろこぶ","to be glad","Verbs"],
+  ["慣れる","なれる","to get used to","Verbs"],
+  ["困る","こまる","to be troubled","Verbs"],
+  ["残る","のこる","to remain","Verbs"],
+  ["足りる","たりる","to be enough","Verbs"],
+  ["過ぎる","すぎる","to pass / exceed","Verbs"],
+  ["進む","すすむ","to advance","Verbs"],
+  ["戻る","もどる","to return","Verbs"],
+  ["断る","ことわる","to refuse","Verbs"],
+  ["謝る","あやまる","to apologize","Verbs"],
+  ["怒る","おこる","to get angry","Verbs"],
+  ["笑う","わらう","to laugh","Verbs"],
+  ["泣く","なく","to cry","Verbs"],
+  ["驚く","おどろく","to be surprised","Verbs"],
+  ["倒れる","たおれる","to fall over","Verbs"],
+  ["助ける","たすける","to help / save","Verbs"],
+  ["届く","とどく","to reach","Verbs"],
+  ["預ける","あずける","to deposit / entrust","Verbs"],
+  ["並ぶ","ならぶ","to line up","Verbs"],
+  ["並べる","ならべる","to arrange","Verbs"],
+  ["割れる","われる","to crack / split","Verbs"],
+  ["壊れる","こわれる","to break (intr.)","Verbs"],
+  ["壊す","こわす","to break (tr.)","Verbs"],
+  ["汚れる","よごれる","to get dirty","Verbs"],
+  ["押す","おす","to push","Verbs"],
+  ["引く","ひく","to pull","Verbs"],
+
+  // i-adjectives
+  ["細かい","こまかい","detailed / fine","Adjectives"],
+  ["厳しい","きびしい","strict / harsh","Adjectives"],
+  ["優しい","やさしい","kind / gentle","Adjectives"],
+  ["親しい","したしい","close / intimate","Adjectives"],
+  ["珍しい","めずらしい","rare / unusual","Adjectives"],
+  ["恥ずかしい","はずかしい","embarrassing","Adjectives"],
+  ["悔しい","くやしい","frustrating / vexing","Adjectives"],
+  ["眠い","ねむい","sleepy","Adjectives"],
+  ["苦い","にがい","bitter","Adjectives"],
+  ["浅い","あさい","shallow","Adjectives"],
+  ["深い","ふかい","deep","Adjectives"],
+  ["濃い","こい","thick / strong","Adjectives"],
+  ["薄い","うすい","thin / weak","Adjectives"],
+  ["硬い","かたい","hard","Adjectives"],
+  ["柔らかい","やわらかい","soft","Adjectives"],
+  ["正しい","ただしい","correct","Adjectives"],
+  ["美しい","うつくしい","beautiful","Adjectives"],
+  ["偉い","えらい","great / admirable","Adjectives"],
+
+  // na-adjectives
+  ["大切","たいせつ","important / precious","Na-adjectives"],
+  ["大事","だいじ","important","Na-adjectives"],
+  ["必要","ひつよう","necessary","Na-adjectives"],
+  ["重要","じゅうよう","important","Na-adjectives"],
+  ["十分","じゅうぶん","enough","Na-adjectives"],
+  ["危険","きけん","dangerous","Na-adjectives"],
+  ["安全","あんぜん","safe","Na-adjectives"],
+  ["複雑","ふくざつ","complicated","Na-adjectives"],
+  ["簡単","かんたん","simple / easy","Na-adjectives"],
+  ["正確","せいかく","accurate","Na-adjectives"],
+  ["適当","てきとう","suitable / so-so","Na-adjectives"],
+  ["真剣","しんけん","serious / earnest","Na-adjectives"],
+  ["得意","とくい","good at","Na-adjectives"],
+  ["苦手","にがて","bad at / dislike","Na-adjectives"],
+  ["丁寧","ていねい","polite / careful","Na-adjectives"],
+  ["失礼","しつれい","rude / impolite","Na-adjectives"],
+
+  // Adverbs & others
+  ["必ず","かならず","surely / without fail","Adverbs"],
+  ["絶対","ぜったい","absolutely","Adverbs"],
+  ["例えば","たとえば","for example","Adverbs"],
+  ["実は","じつは","actually / in fact","Adverbs"],
+  ["急に","きゅうに","suddenly","Adverbs"],
+  ["突然","とつぜん","all of a sudden","Adverbs"],
+  ["偶然","ぐうぜん","by chance","Adverbs"],
+  ["当然","とうぜん","naturally / of course","Adverbs"],
+  ["結局","けっきょく","in the end","Adverbs"],
+  ["直接","ちょくせつ","directly","Adverbs"]
+];
+
+// category order
+const CAT_ORDER = ["People","Body & Health","Time","Daily Life","Food","Work & Study",
+  "Society & Ideas","Money","Nature","Travel","Verbs","Adjectives","Na-adjectives","Adverbs"];
+
+// ---------- STATE ----------
+let learned = new Set();
+let activeCat = "all";
+let query = "";
+let hideRead = false;
+let hideLearned = false;
+
+const STORE_KEY = "n3_learned";
+
+// ---------- PERSISTENCE ----------
+async function loadLearned(){
+  try{
+    const r = await window.storage.get(STORE_KEY);
+    if(r && r.value){ learned = new Set(JSON.parse(r.value)); }
+  }catch(e){ /* first run / no key */ }
+}
+async function saveLearned(){
+  try{ await window.storage.set(STORE_KEY, JSON.stringify([...learned])); }
+  catch(e){ /* storage unavailable, keep in-memory */ }
+}
+
+// ---------- RENDER ----------
+const main = document.getElementById('main');
+const catsEl = document.getElementById('cats');
+
+function counts(){
+  const c = {};
+  WORDS.forEach(w => c[w[3]] = (c[w[3]]||0)+1);
+  return c;
+}
+
+function renderCats(){
+  const c = counts();
+  let html = `<button class="pill ${activeCat==='all'?'on':''}" data-cat="all">All<span class="n">${WORDS.length}</span></button>`;
+  CAT_ORDER.forEach(cat=>{
+    html += `<button class="pill ${activeCat===cat?'on':''}" data-cat="${cat}">${cat}<span class="n">${c[cat]||0}</span></button>`;
+  });
+  catsEl.innerHTML = html;
+  catsEl.querySelectorAll('.pill').forEach(p=>{
+    p.onclick = ()=>{ activeCat = p.dataset.cat; renderCats(); renderGrid(); };
+  });
+}
+
+function matches(w){
+  if(activeCat!=='all' && w[3]!==activeCat) return false;
+  if(hideLearned && learned.has(w[0])) return false;
+  if(query){
+    const q = query.toLowerCase();
+    return w[0].includes(query) || w[1].includes(query) || w[2].toLowerCase().includes(q);
+  }
+  return true;
+}
+
+function cardHTML(w){
+  const isL = learned.has(w[0]);
+  return `<div class="card ${isL?'learned':''}" data-k="${w[0]}">
+    <div class="stamp" data-stamp="${w[0]}">済</div>
+    <div class="kanji jp">${w[0]}</div>
+    <div class="read jp-g">${w[1]}</div>
+    <div class="mean">${w[2]}</div>
+  </div>`;
+}
+
+function renderGrid(){
+  const list = WORDS.filter(matches);
+  if(list.length===0){
+    main.innerHTML = `<div class="empty">No words match your search.</div>`;
+    return;
+  }
+  let html = "";
+  const cats = activeCat==='all' ? CAT_ORDER : [activeCat];
+  cats.forEach(cat=>{
+    const items = list.filter(w=>w[3]===cat);
+    if(items.length===0) return;
+    html += `<div class="group-title">${cat}</div><div class="grid">`;
+    items.forEach(w=> html += cardHTML(w));
+    html += `</div>`;
+  });
+  main.innerHTML = html;
+
+  // card interactions
+  main.querySelectorAll('.card').forEach(card=>{
+    card.onclick = (e)=>{
+      if(e.target.dataset.stamp) return; // handled below
+      card.classList.toggle('peek');
+    };
+  });
+  main.querySelectorAll('.stamp').forEach(s=>{
+    s.onclick = (e)=>{
+      e.stopPropagation();
+      const k = s.dataset.stamp;
+      if(learned.has(k)) learned.delete(k); else learned.add(k);
+      saveLearned();
+      const card = s.closest('.card');
+      card.classList.toggle('learned');
+      if(hideLearned && learned.has(k)) { renderGrid(); }
+      updateProgress();
+    };
+  });
+}
+
+function updateProgress(){
+  const total = WORDS.length;
+  const got = WORDS.filter(w=>learned.has(w[0])).length;
+  const pct = Math.round(got/total*100);
+  document.getElementById('pct').textContent = pct + '%';
+  document.getElementById('barFill').style.width = pct + '%';
+  document.getElementById('learnedCount').textContent = `${got} / ${total} learned`;
+  document.getElementById('total').textContent = `${total} N3 words`;
+}
+
+// ---------- CONTROLS ----------
+document.getElementById('search').addEventListener('input', e=>{
+  query = e.target.value.trim(); renderGrid();
+});
+document.getElementById('toggleRead').addEventListener('click', e=>{
+  hideRead = !hideRead;
+  document.body.classList.toggle('hide-read', hideRead);
+  e.target.textContent = hideRead ? 'Show readings' : 'Hide readings';
+  e.target.classList.toggle('on', hideRead);
+});
+document.getElementById('toggleLearned').addEventListener('click', e=>{
+  hideLearned = !hideLearned;
+  e.target.textContent = hideLearned ? 'Show learned' : 'Hide learned';
+  e.target.classList.toggle('on', hideLearned);
+  renderGrid();
+});
+
+// ---------- FLASHCARDS ----------
+const fc = document.getElementById('fc');
+const fcBody = document.getElementById('fcBody');
+const fcProg = document.getElementById('fcProg');
+let deck = [], di = 0;
+
+function startFlash(){
+  // build deck from currently filtered set (respect category + hideLearned)
+  deck = WORDS.filter(matches);
+  if(deck.length===0) deck = WORDS.slice();
+  // shuffle
+  for(let i=deck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]];}
+  di = 0;
+  fc.classList.add('show');
+  showCard();
+}
+function showCard(){
+  if(di>=deck.length){ showDone(); return; }
+  const w = deck[di];
+  fcProg.textContent = `${di+1} / ${deck.length}`;
+  fcBody.innerHTML = `
+    <div class="flip" id="flip">
+      <div class="flip-in">
+        <div class="face front">
+          <div class="big jp">${w[0]}</div>
+          <div class="tap">Tap to flip</div>
+        </div>
+        <div class="face back">
+          <div class="read jp-g">${w[1]}</div>
+          <div class="mean">${w[2]}</div>
+          <div class="tap">Tap to flip back</div>
+        </div>
+      </div>
+    </div>
+    <div class="fc-actions">
+      <button class="again" id="again">↻ Again</button>
+      <button class="know" id="know">✓ I knew it</button>
+    </div>`;
+  document.getElementById('flip').onclick = ()=> document.getElementById('flip').classList.toggle('flipped');
+  document.getElementById('again').onclick = ()=>{ di++; showCard(); };
+  document.getElementById('know').onclick = ()=>{
+    learned.add(w[0]); saveLearned(); updateProgress();
+    di++; showCard();
+  };
+}
+function showDone(){
+  const got = WORDS.filter(w=>learned.has(w[0])).length;
+  fcProg.textContent = `${deck.length} / ${deck.length}`;
+  fcBody.innerHTML = `<div class="fc-done">
+    <h3>お疲れさま！ Deck complete</h3>
+    <p>You've reviewed ${deck.length} cards. ${got} words marked learned overall.</p>
+    <button id="fcRestart">Shuffle again</button>
+  </div>`;
+  document.getElementById('fcRestart').onclick = startFlash;
+}
+function closeFlash(){ fc.classList.remove('show'); renderGrid(); }
+document.getElementById('flashBtn').onclick = startFlash;
+document.getElementById('fcClose').onclick = closeFlash;
+fc.addEventListener('click', e=>{ if(e.target===fc) closeFlash(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && fc.classList.contains('show')) closeFlash(); });
+
+// ---------- INIT ----------
+(async function(){
+  await loadLearned();
+  renderCats();
+  renderGrid();
+  updateProgress();
+})();
+</script>
+</body>
+</html>

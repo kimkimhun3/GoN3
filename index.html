@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>N3 単語帳 — JLPT N3 Kanji Words</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="N3 Kanji">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#24405E">
+<script src="push.js" defer></script>
 <style>
   :root{
     --paper:#F6F3EC;
@@ -121,6 +128,24 @@
   .card.learned{border-color:#d8c4ad;background:linear-gradient(135deg,#FBF9F4,#F6EFE4)}
   .card.learned .stamp{border-color:var(--shu);color:var(--shu);font-family:serif}
 
+  /* ---- mode switch ---- */
+  .modeswitch{display:inline-flex;background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:3px;gap:3px}
+  .modeswitch button{border:0;background:transparent;color:var(--ink-soft);padding:7px 16px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s ease}
+  .modeswitch button.on{background:var(--ai);color:#fff}
+
+  /* ---- grammar cards ---- */
+  .ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+  .gcard{background:var(--paper-2);border:1px solid var(--line);border-radius:14px;padding:18px 18px 16px;position:relative}
+  .gcard.learned{border-color:#d8c4ad;background:linear-gradient(135deg,#FBF9F4,#F6EFE4)}
+  .gcard .pat{font-size:22px;font-weight:700;color:var(--ink);line-height:1.3;padding-right:30px}
+  .gcard .use{font-size:14px;color:var(--ai);margin-top:5px;font-weight:600}
+  .gcard .form{font-size:12.5px;color:var(--ink-soft);margin-top:8px;padding:6px 9px;background:var(--paper);border-radius:7px;border:1px solid var(--line)}
+  .gcard .ex{margin-top:11px;padding-left:12px;border-left:2px solid var(--gold)}
+  .gcard .ex .jpx{font-size:15px;color:var(--ink);line-height:1.5}
+  .gcard .ex .enx{font-size:13px;color:var(--ink-soft);margin-top:1px}
+  .gcard .ex + .ex{margin-top:9px}
+  .gcard .stamp{top:12px;right:12px}
+
   .empty{text-align:center;color:var(--ink-soft);padding:60px 20px;font-size:15px}
 
   /* ---- flashcard overlay ---- */
@@ -150,6 +175,12 @@
   .fc-actions button{flex:1;padding:13px;border-radius:12px;border:0;font-size:15px;font-weight:600;cursor:pointer;color:#fff}
   .again{background:#7a7066}
   .know{background:var(--ai)}
+  .face.gfront .big{font-size:34px;line-height:1.3}
+  .face.gback{align-items:flex-start;text-align:left;justify-content:flex-start;overflow-y:auto;padding:24px}
+  .face.gback .guse{font-size:17px;color:var(--ai);font-weight:700}
+  .face.gback .gform{font-size:13px;color:var(--ink-soft);margin:8px 0}
+  .face.gback .gex{font-size:15px;color:var(--ink);margin-top:10px;line-height:1.5}
+  .face.gback .gex small{display:block;color:var(--ink-soft);font-size:13px;margin-top:1px}
   .fc-done{background:var(--paper-2);border-radius:18px;padding:44px 28px;text-align:center}
   .fc-done h3{font-size:22px;margin-bottom:8px}
   .fc-done p{color:var(--ink-soft);margin-bottom:20px}
@@ -173,6 +204,10 @@
 </header>
 
 <div class="controls">
+  <div class="modeswitch">
+    <button data-mode="words" class="on">単語 Words</button>
+    <button data-mode="grammar">文法 Grammar</button>
+  </div>
   <div class="toolbar">
     <label class="search">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
@@ -181,6 +216,7 @@
     <button class="btn" id="toggleRead">Hide readings</button>
     <button class="btn shu" id="toggleLearned">Hide learned</button>
     <button class="btn on" id="flashBtn">▶ Flashcards</button>
+    <button class="btn" id="enablePush">🔔 Enable reminders</button>
   </div>
   <div class="cats" id="cats"></div>
 </div>
@@ -466,25 +502,202 @@ const WORDS = [
 const CAT_ORDER = ["People","Body & Health","Time","Daily Life","Food","Work & Study",
   "Society & Ideas","Money","Nature","Travel","Verbs","Adjectives","Na-adjectives","Adverbs"];
 
+// ---------- GRAMMAR DATA ----------
+// [pattern, how-to-use, formation, ex1(jp), ex1(en), ex2(jp), ex2(en), category]
+const GRAMMAR = [
+  // ---- Cause / Reason ----
+  ["～おかげで","thanks to ~ (positive result)","V/A plain・Na+な・N+の ＋ おかげで","先生のおかげで、試験に合格できました。","Thanks to my teacher, I was able to pass the exam.","天気がよかったおかげで、楽しい旅行になった。","Thanks to the good weather, it turned into an enjoyable trip.","Cause / Reason"],
+  ["～せいで／～せいか","because of ~ (negative result); せいか = perhaps because","V/A plain・Na+な・N+の ＋ せいで","雨のせいで、試合が中止になった。","Because of the rain, the match was canceled.","寝不足のせいか、頭が痛い。","Perhaps because I didn't sleep enough, my head hurts.","Cause / Reason"],
+  ["～ため（に）","because of / due to ~ (reason)","V/A plain・Na+な・N+の ＋ ため（に）","事故のために、電車が遅れている。","Because of an accident, the train is delayed.","病気のため、会社を休んだ。","Due to illness, I took the day off work.","Cause / Reason"],
+  ["～ものだから／～もので","because ~ (giving an excuse or explanation)","V/A plain・Na+な・N+な ＋ ものだから","電車が遅れたものだから、遅刻してしまった。","Because the train was late, I ended up being late.","急いでいたもので、失礼しました。","I was in a hurry, so please excuse me.","Cause / Reason"],
+  ["～だけに","precisely because ~ / all the more because","V/A plain・Na+な・N ＋ だけに","期待していただけに、負けて残念だ。","Precisely because I'd hoped for it, losing is disappointing.","有名な店だけに、いつも客が多い。","Being a famous shop, it always has many customers.","Cause / Reason"],
+  ["～だけあって","as one would expect from ~ / befitting","V/A plain・Na+な・N ＋ だけあって","さすが先生だけあって、説明が上手だ。","As you'd expect from a teacher, the explanation is skillful.","高いだけあって、品質がいい。","Fittingly for the high price, the quality is good.","Cause / Reason"],
+  ["～からこそ","precisely because ~ (emphatic reason)","plain form ＋ からこそ","あなたのことを思うからこそ、注意するのだ。","It's precisely because I care about you that I warn you.","努力したからこそ、成功した。","It was precisely because I worked hard that I succeeded.","Cause / Reason"],
+  ["～ばかりに","simply because ~ (leading to an unfortunate result)","V/A plain・Na+な・N+である ＋ ばかりに","一言多く言ったばかりに、けんかになった。","Simply because I said one word too many, it turned into a fight.","お金がないばかりに、進学をあきらめた。","Just because I had no money, I gave up on university.","Cause / Reason"],
+  ["～あまり（に）","so much ~ that (extreme cause → result)","V-dict・N+の ＋ あまり","緊張のあまり、声が出なかった。","I was so nervous that no voice would come out.","働きすぎたあまり、体を壊した。","I worked so hard that I ruined my health.","Cause / Reason"],
+  ["～ことだから","because it is ~ (typical of that person)","N+の ＋ ことだから","まじめな彼のことだから、時間通りに来るだろう。","Being the diligent person he is, he'll surely come on time.","あの人のことだから、また遅れるだろう。","Knowing them, they'll probably be late again.","Cause / Reason"],
+
+  // ---- Contrast / Concession ----
+  ["～のに","although / even though ~ (unexpected result)","V/A plain・Na+な・N+な ＋ のに","一生懸命勉強したのに、試験に落ちた。","Even though I studied hard, I failed the exam.","もう春なのに、まだ寒い。","Even though it's already spring, it's still cold.","Contrast / Concession"],
+  ["～くせに","even though ~ (with criticism / contempt)","V/A plain・Na+な・N+の ＋ くせに","知っているくせに、教えてくれない。","Even though he knows, he won't tell me.","子供のくせに、生意気だ。","He's cheeky, even though he's only a child.","Contrast / Concession"],
+  ["～わりに（は）","considering / for ~ (contrary to what's expected)","V/A plain・Na+な・N+の ＋ わりに","この店は値段のわりにおいしい。","This place is tasty considering the price.","よく食べるわりに、太らない。","For how much he eats, he doesn't gain weight.","Contrast / Concession"],
+  ["～にもかかわらず","despite / in spite of ~","V/A plain・Na・N ＋ にもかかわらず","努力したにもかかわらず、失敗した。","Despite my efforts, I failed.","悪天候にもかかわらず、試合は行われた。","In spite of the bad weather, the match was held.","Contrast / Concession"],
+  ["～ものの","although / but ~ (acknowledge, then contrast)","V/A plain・Na+な・N+である ＋ ものの","買ったものの、一度も使っていない。","Although I bought it, I've never used it.","免許は持っているものの、運転はしない。","Although I have a license, I don't drive.","Contrast / Concession"],
+  ["～からといって","just because ~ (doesn't mean...)","plain form ＋ からといって","高いからといって、いいとは限らない。","Just because it's expensive doesn't mean it's good.","日本人だからといって、漢字が全部書けるわけではない。","Being Japanese doesn't mean you can write every kanji.","Contrast / Concession"],
+  ["～といっても","although I say ~ / even so","plain form ＋ といっても","料理ができるといっても、卵焼きぐらいだ。","Although I say I can cook, it's only about tamagoyaki.","忙しいといっても、少しは時間がある。","Even though I say I'm busy, I have a little time.","Contrast / Concession"],
+  ["～一方（で）","on the one hand ~ / while (meanwhile)","V/A plain・Na+な・N+である ＋ 一方（で）","都会は便利な一方で、物価が高い。","Cities are convenient, but on the other hand prices are high.","兄は外で遊ぶ一方、弟は家で本を読む。","While my older brother plays outside, my younger reads at home.","Contrast / Concession"],
+  ["～反面（はんめん）","on the other hand ~ (two sides of one thing)","V/A plain・Na+な・N+である ＋ 反面","この仕事は楽しい反面、大変だ。","This job is fun, but on the flip side it's tough.","便利な反面、危険もある。","It's convenient, but on the other hand there's danger too.","Contrast / Concession"],
+  ["～にしては","for / considering ~ (contrary to expectation)","V/A plain・N ＋ にしては","初めてにしては、上手だ。","For a first attempt, you're good.","子供にしては、しっかりしている。","For a child, he's quite responsible.","Contrast / Concession"],
+  ["～に比べて","compared to ~","N ＋ に比べて","去年に比べて、今年は暑い。","Compared to last year, this year is hot.","兄に比べて、私は背が低い。","Compared to my brother, I'm short.","Contrast / Concession"],
+  ["～に反して（にはんして）","contrary to ~ (expectations, etc.)","N ＋ に反して","予想に反して、彼が優勝した。","Contrary to expectations, he won the championship.","期待に反して、結果は悪かった。","Contrary to hopes, the result was poor.","Contrast / Concession"],
+  ["～にしても／～にしろ／～にせよ","even if / whether ~ or ~ (concession)","V/A plain・Na・N ＋ にしても","忙しいにしても、連絡ぐらいはできるはずだ。","Even if you're busy, you should at least get in touch.","行くにしても行かないにしても、早く決めて。","Whether you go or not, decide quickly.","Contrast / Concession"],
+  ["～ながら（も）","although / while ~ (concession)","V-masu・A・Na・N ＋ ながら（も）","残念ながら、参加できません。","Regrettably, I cannot participate.","狭いながらも、楽しい我が家だ。","Though small, it's my happy home.","Contrast / Concession"],
+  ["～かえって","on the contrary / rather (opposite of expected)","adverb, used within the clause","薬を飲んだら、かえって具合が悪くなった。","After taking the medicine, I felt worse instead.","手伝ったら、かえって邪魔になった。","When I tried to help, I only got in the way instead.","Contrast / Concession"],
+
+  // ---- Time / Sequence ----
+  ["～うちに／～ないうちに","while ~ / before ~ (a state changes)","V-dict／ない／ている・Na+な・N+の ＋ うちに","若いうちに、いろいろな経験をしたほうがいい。","While you're young, it's better to have many experiences.","忘れないうちに、メモしておこう。","Let me note it down before I forget.","Time / Sequence"],
+  ["～とたん（に）","the moment that ~ / just as","V-た ＋ とたん（に）","家を出たとたん、雨が降り出した。","The moment I left the house, it began to rain.","ドアを開けたとたん、猫が飛び出した。","Just as I opened the door, the cat sprang out.","Time / Sequence"],
+  ["～たびに","every time ~ / whenever","V-dict・N+の ＋ たびに","この写真を見るたびに、母を思い出す。","Every time I see this photo, I remember my mother.","会うたびに、彼は変わっている。","Every time I meet him, he has changed.","Time / Sequence"],
+  ["～ついでに","while (at it) / on the same occasion","V-dict／た・N+の ＋ ついでに","買い物のついでに、郵便局に寄った。","While out shopping, I dropped by the post office.","散歩のついでに、パンを買ってきて。","Pick up some bread while you're out on your walk.","Time / Sequence"],
+  ["～か～ないかのうちに","no sooner ~ than / as soon as","V-dict ＋ か ＋ V-ない ＋ かのうちに","ベルが鳴るか鳴らないかのうちに、彼は教室を出た。","No sooner had the bell rung than he left the classroom.","家に着くか着かないかのうちに、電話が鳴った。","I had barely gotten home when the phone rang.","Time / Sequence"],
+  ["～最中に（さいちゅうに）","right in the middle of ~","V-ている・N+の ＋ 最中に","食事の最中に、地震が起きた。","An earthquake struck right in the middle of the meal.","会議の最中に、電話が鳴った。","The phone rang right in the middle of the meeting.","Time / Sequence"],
+  ["～ところだ","about to / in the middle of / just did","V-dict／ている／た ＋ ところだ","今から出かけるところだ。","I'm just about to head out now.","ちょうど食べ終わったところだ。","I've just finished eating.","Time / Sequence"],
+  ["～ところに／～ところへ／～ところを","just as ~ / right when (interruption)","V-dict／ている／た ＋ ところに／を","出かけようとしたところに、客が来た。","Just as I was about to go out, a visitor arrived.","寝ているところを起こされた。","I was woken up right while I was sleeping.","Time / Sequence"],
+  ["～て以来（ていらい）","since / ever since ~","V-て ＋ 以来","日本に来て以来、一度も国に帰っていない。","Since coming to Japan, I haven't gone home even once.","卒業して以来、彼に会っていない。","I haven't seen him since we graduated.","Time / Sequence"],
+  ["～あいだ／～あいだに","during / while ~ (throughout / at a point within)","V-ている・Na+な・N+の ＋ 間（に）","夏休みの間、田舎で過ごした。","During summer vacation, I stayed in the countryside.","母が寝ている間に、掃除をした。","I cleaned while my mother was asleep.","Time / Sequence"],
+  ["～たばかり","just did ~ / only just now","V-た ＋ ばかり","日本に来たばかりで、まだ日本語が下手だ。","I've only just come to Japan, so my Japanese is still poor.","さっき昼ご飯を食べたばかりだ。","I ate lunch just a moment ago.","Time / Sequence"],
+  ["～てはじめて","only after ~ / not until ~","V-て ＋ はじめて","病気になってはじめて、健康のありがたさが分かった。","Only after falling ill did I realize the value of health.","親になってはじめて、親の気持ちが分かった。","Not until I became a parent did I understand my parents.","Time / Sequence"],
+  ["～たところ","upon doing ~ (and then found that...)","V-た ＋ ところ","先生に聞いたところ、明日は休みだそうだ。","When I asked the teacher, apparently tomorrow is a holiday.","使ってみたところ、とても便利だった。","Upon trying it, it turned out to be very handy.","Time / Sequence"],
+  ["～から～にかけて","from ~ through ~ (a range of time/place)","N ＋ から ＋ N ＋ にかけて","夜から朝にかけて、雪が降った。","It snowed from night through to morning.","春から夏にかけて、花が咲く。","Flowers bloom from spring through summer.","Time / Sequence"],
+  ["～とともに","together with ~ / as ~ (simultaneous change)","V-dict・N ＋ とともに","年をとるとともに、体が弱くなる。","As one grows older, the body grows weaker.","家族とともに新しい町へ引っ越した。","I moved to a new town together with my family.","Time / Sequence"],
+  ["～次第（しだい）","as soon as ~ (formal)","V-masu ＋ 次第","準備ができ次第、出発します。","We'll depart as soon as preparations are complete.","詳しいことが分かり次第、連絡します。","I'll contact you as soon as I know the details.","Time / Sequence"],
+  ["～末に（すえに）","after (much) ~, finally","V-た・N+の ＋ 末に","長い間考えた末に、留学を決めた。","After thinking for a long time, I finally decided to study abroad.","苦労の末に、成功した。","After much hardship, he finally succeeded.","Time / Sequence"],
+  ["～上で（うえで）","after / upon ~ (doing something first)","V-た・N+の ＋ 上で","よく考えた上で、返事します。","I'll reply after thinking it over carefully.","内容を確認した上で、サインしてください。","Please sign after checking the contents.","Time / Sequence"],
+
+  // ---- Condition ----
+  ["～なら","if ~ (given that / speaking of)","V/A plain・Na・N ＋ なら","日本へ行くなら、京都がおすすめだ。","If you're going to Japan, I recommend Kyoto.","疲れているなら、休んだほうがいい。","If you're tired, you'd better rest.","Condition"],
+  ["たとえ～ても","even if ~","たとえ ＋ V-て／A-くて・Na／N+で ＋ も","たとえ雨が降っても、行きます。","Even if it rains, I'll go.","たとえ高くても、これが欲しい。","Even if it's expensive, I want this.","Condition"],
+  ["～としても","even if ~ (supposing)","plain form ＋ としても","本当だとしても、信じられない。","Even if it's true, I can't believe it.","急いだとしても、間に合わないだろう。","Even if we hurry, we probably won't make it.","Condition"],
+  ["～とすれば／～としたら／～とすると","if we suppose / assuming ~","plain form ＋ とすれば","宝くじが当たったとしたら、何を買いますか。","Supposing you won the lottery, what would you buy?","これが本当だとすれば、大変なことだ。","If this is true, then it's a serious matter.","Condition"],
+  ["～ないことには","unless ~ (X won't happen)","V-ない・A-くない・N+で ＋ ないことには","やってみないことには、分からない。","Unless you try it, you won't know.","お金がないことには、旅行できない。","Unless I have money, I can't travel.","Condition"],
+  ["～かぎり／～ないかぎり","as long as ~ / unless ~","V-dict／ている／ない・N+である ＋ 限り","私が知っている限り、彼は正直だ。","As far as I know, he is honest.","謝らない限り、許さない。","Unless you apologize, I won't forgive you.","Condition"],
+  ["～さえ～ば","if only ~ / as long as ~ (just this one thing)","N+さえ ＋ V-ば；V-masu+さえすれば","お金さえあれば、何でもできる。","If only you have money, you can do anything.","薬を飲みさえすれば、治る。","As long as you just take the medicine, you'll get better.","Condition"],
+
+  // ---- Purpose / Intention ----
+  ["～ように","so that ~ / in order that (non-volitional)","V-dict／ない・V-potential ＋ ように","後ろの人にも聞こえるように、大きな声で話した。","I spoke loudly so that people in the back could hear too.","忘れないように、メモした。","I made a note so that I wouldn't forget.","Purpose / Intention"],
+  ["～ようにする","make an effort to / try to ~ (habitually)","V-dict／ない ＋ ようにする","毎日運動するようにしている。","I make a point of exercising every day.","甘いものを食べないようにする。","I'll try not to eat sweets.","Purpose / Intention"],
+  ["～ように言う","tell someone to ~ (indirect command)","V-dict／ない ＋ ように言う／頼む","医者に、お酒を飲まないように言われた。","The doctor told me not to drink alcohol.","母に、早く帰るように言われた。","My mother told me to come home early.","Purpose / Intention"],
+  ["～ことにする","decide to ~ (one's own decision)","V-dict／ない ＋ ことにする","明日から早起きすることにした。","I've decided to start getting up early from tomorrow.","たばこをやめることにした。","I've decided to quit smoking.","Purpose / Intention"],
+  ["～ことにしている","make it a rule / habit to ~","V-dict／ない ＋ ことにしている","毎朝、日記を書くことにしている。","I make it a habit to write a diary every morning.","お酒は飲まないことにしている。","I make it a rule not to drink alcohol.","Purpose / Intention"],
+  ["～ようとする","try / attempt to ~; be about to ~","V-volitional ＋ とする","家を出ようとしたとき、電話が鳴った。","Just as I was about to leave home, the phone rang.","何度も立ち上がろうとしたが、できなかった。","I tried to stand up many times but couldn't.","Purpose / Intention"],
+
+  // ---- Estimation / Hearsay ----
+  ["～はずだ","should / ought to ~ (logical expectation)","V/A plain・Na+な・N+の ＋ はずだ","彼はもう着いているはずだ。","He should have already arrived.","この時間なら、店は開いているはずだ。","At this hour, the shop should be open.","Estimation / Hearsay"],
+  ["～はずがない","there's no way / it can't be that ~","V/A plain・Na+な・N+の ＋ はずがない","そんなことがあるはずがない。","There's no way something like that could happen.","彼女がそんなことを言うはずがない。","There's no way she would say such a thing.","Estimation / Hearsay"],
+  ["～に違いない（にちがいない）","must be ~ / no doubt that ~","V/A plain・Na・N ＋ に違いない","彼が犯人に違いない。","He must be the culprit.","この様子では、負けるに違いない。","At this rate, we'll surely lose.","Estimation / Hearsay"],
+  ["～に決まっている","is bound to be ~ / surely ~","V/A plain・Na・N ＋ に決まっている","そんな話、うそに決まっている。","A story like that is surely a lie.","練習しなければ、負けるに決まっている。","If you don't practice, you're bound to lose.","Estimation / Hearsay"],
+  ["～ようだ／～みたいだ","seems / looks like ~ (from observation)","V/A plain・Na+な・N+の ＋ ようだ（みたいだ is casual）","誰かいるようだ。","It seems someone is here.","彼は疲れているみたいだ。","He looks tired.","Estimation / Hearsay"],
+  ["～らしい","seems / apparently ~ (hearsay or typical of)","V/A plain・Na・N ＋ らしい","明日は雨が降るらしい。","Apparently it's going to rain tomorrow.","彼は本当に男らしい。","He is truly manly.","Estimation / Hearsay"],
+  ["～そうだ（伝聞）","I hear that ~ / they say ~ (hearsay)","plain form ＋ そうだ","ニュースによると、台風が来るそうだ。","According to the news, a typhoon is coming.","田中さんは会社をやめたそうだ。","I hear Tanaka quit the company.","Estimation / Hearsay"],
+  ["～そうだ（様態）","looks like ~ / seems about to ~","V-masu・A(－い)・Na ＋ そうだ","このケーキ、おいしそうだ。","This cake looks delicious.","今にも雨が降りそうだ。","It looks like it's about to rain any moment.","Estimation / Hearsay"],
+  ["～ということだ","it means that ~ / I hear that ~","plain form ＋ ということだ","天気予報によると、明日は雪だということだ。","According to the forecast, it means it'll snow tomorrow.","つまり、彼は来ないということだ。","In other words, it means he's not coming.","Estimation / Hearsay"],
+  ["～ような気がする","have a feeling that ~","V/A plain・Na+な・N+の ＋ ような気がする","どこかで会ったような気がする。","I have a feeling we've met somewhere.","誰かに見られているような気がする。","I have a feeling someone is watching me.","Estimation / Hearsay"],
+
+  // ---- Change / Result ----
+  ["～ようになる","come to ~ / reach the point of (change of state)","V-dict／ない・V-potential ＋ ようになる","日本語が話せるようになった。","I've become able to speak Japanese.","最近、早く寝るようになった。","Lately I've started going to bed early.","Change / Result"],
+  ["～ことになる","it's been decided ~ / it turns out that ~","V-dict／ない ＋ ことになる","来月、大阪へ転勤することになった。","It's been decided I'll transfer to Osaka next month.","結局、彼が行くことになった。","In the end, it was decided he would go.","Change / Result"],
+  ["～ことになっている","it's a rule / arrangement that ~","V-dict／ない ＋ ことになっている","このアパートではペットを飼ってはいけないことになっている。","In this apartment, the rule is no pets.","明日、10時に会うことになっている。","I'm scheduled to meet at 10 tomorrow.","Change / Result"],
+  ["～につれて","as ~ (proportional, gradual change)","V-dict・N ＋ につれて","時間がたつにつれて、痛みが消えた。","As time passed, the pain faded.","高く登るにつれて、寒くなる。","As you climb higher, it gets colder.","Change / Result"],
+  ["～にしたがって（に従って）","as / in accordance with ~ (gradual change or rule)","V-dict・N ＋ にしたがって","年をとるにしたがって、忘れっぽくなる。","As one ages, one grows forgetful.","指示に従って、行動してください。","Please act in accordance with the instructions.","Change / Result"],
+  ["～だす","suddenly start ~ing","V-masu ＋ だす","急に雨が降りだした。","It suddenly started to rain.","赤ちゃんが泣きだした。","The baby started crying.","Change / Result"],
+  ["～てくる／～ていく","come to be ~ / go on ~ing (change over time)","V-て ＋ くる／いく","だんだん寒くなってきた。","It has gradually gotten colder.","これから、人口は減っていくだろう。","From now on, the population will likely keep decreasing.","Change / Result"],
+
+  // ---- Manner / State ----
+  ["～ずに／～ないで","without doing ~","V-ない (→ず) ＋ に／V-ない ＋ で","朝ご飯を食べずに、学校へ行った。","I went to school without eating breakfast.","何も言わずに、帰ってしまった。","He left without saying anything.","Manner / State"],
+  ["～たまま","as it is / leaving (a state) unchanged","V-た・N+の ＋ まま","電気をつけたまま、寝てしまった。","I fell asleep with the lights left on.","靴を履いたまま、入らないでください。","Please don't enter with your shoes on.","Manner / State"],
+  ["～てある","has been done ~ (resulting state, on purpose)","V-て ＋ ある","壁に絵がかけてある。","A picture has been hung on the wall.","予約してあるので、大丈夫です。","It's fine, because a reservation has been made.","Manner / State"],
+  ["～ておく","do ~ in advance / leave (something) done","V-て ＋ おく","旅行の前に、切符を買っておく。","I'll buy the tickets in advance before the trip.","会議の資料を準備しておいた。","I prepared the meeting materials beforehand.","Manner / State"],
+  ["～てしまう","end up ~ / do completely (often regret)","V-て ＋ しまう","財布を落としてしまった。","I ended up dropping my wallet.","ケーキを全部食べてしまった。","I ate up the whole cake.","Manner / State"],
+  ["～っぽい","-ish / tends to be ~ / looks like ~","V-masu・A・N ＋ っぽい","彼は忘れっぽい。","He tends to be forgetful.","この水は白っぽい。","This water is whitish.","Manner / State"],
+  ["～がち","tend to ~ / be prone to (often negative)","V-masu・N ＋ がち","冬は風邪をひきがちだ。","In winter I tend to catch colds.","彼は最近、休みがちだ。","He's been prone to being absent lately.","Manner / State"],
+  ["～気味（ぎみ）","a touch of ~ / slightly ~","V-masu・N ＋ 気味","少し風邪気味です。","I feel a bit like I'm catching a cold.","最近、疲れ気味だ。","Lately I feel a little tired.","Manner / State"],
+  ["～かける／～かけの","half-done / on the verge of ~ing","V-masu ＋ かける／かけの","読みかけの本が机の上にある。","There's a half-read book on the desk.","何か言いかけて、やめた。","He started to say something, then stopped.","Manner / State"],
+
+  // ---- Degree / Extent ----
+  ["～ば～ほど","the more ~ the more ~","V-ば ＋ V-dict ＋ ほど (also A / Na)","考えれば考えるほど、わからなくなる。","The more I think, the less I understand.","練習すればするほど、上手になる。","The more you practice, the better you get.","Degree / Extent"],
+  ["～ほど","to the extent that ~; (not) as ~ as","V/A plain・N ＋ ほど","泣きたいほど悲しかった。","I was so sad I could have cried.","今日は昨日ほど寒くない。","Today isn't as cold as yesterday.","Degree / Extent"],
+  ["～くらい／～ぐらい","to the extent of ~ / about (a small degree)","V/A plain・N ＋ くらい","立てないくらい疲れた。","I was so tired I could barely stand.","自分の部屋くらい、自分で掃除しなさい。","At least clean your own room yourself.","Degree / Extent"],
+  ["～てたまらない","unbearably ~ / can't stand how ~","V-て／A-くて／Na+で ＋ たまらない","のどが渇いてたまらない。","I'm unbearably thirsty.","国の家族に会いたくてたまらない。","I miss my family back home so much I can't stand it.","Degree / Extent"],
+  ["～てしかたがない／～てしょうがない","can't help but ~ / extremely ~","V-て／A-くて／Na+で ＋ しかたがない","結果が気になってしかたがない。","I can't help worrying about the result.","眠くてしょうがない。","I'm terribly sleepy.","Degree / Extent"],
+  ["～てならない","can't help feeling ~","V-て／A-くて／Na+で ＋ ならない","将来が心配でならない。","I can't help feeling anxious about the future.","彼のことが気になってならない。","I can't stop thinking about him.","Degree / Extent"],
+
+  // ---- Addition / Emphasis ----
+  ["～上に（うえに）","on top of ~ / in addition to ~","V/A plain・Na+な・N+である ＋ 上に","この店は安い上に、おいしい。","This place is cheap and, on top of that, tasty.","道に迷った上に、雨に降られた。","Not only did I get lost, I got rained on too.","Addition / Emphasis"],
+  ["～だけでなく～も","not only ~ but also ~","V/A plain・Na・N ＋ だけでなく","彼は英語だけでなく、中国語も話せる。","He can speak not only English but also Chinese.","子供だけでなく、大人も楽しめる。","Not only children but also adults can enjoy it.","Addition / Emphasis"],
+  ["～ばかりでなく","not only ~ but also ~","V/A plain・Na+な・N ＋ ばかりでなく","彼女は美しいばかりでなく、優しい。","She is not only beautiful but also kind.","スポーツばかりでなく、勉強もできる。","He's good not just at sports but at studies too.","Addition / Emphasis"],
+  ["～ばかりか","not only ~ but even ~","V/A plain・Na+な・N ＋ ばかりか","彼は遅刻したばかりか、謝りもしなかった。","He not only came late but didn't even apologize.","雨ばかりか、風も強くなってきた。","Not only rain — the wind has picked up too.","Addition / Emphasis"],
+  ["～に加えて（にくわえて）","in addition to ~","N ＋ に加えて","給料に加えて、ボーナスももらった。","In addition to my salary, I also got a bonus.","雨に加えて、風も強い。","In addition to the rain, the wind is strong too.","Addition / Emphasis"],
+  ["～はもちろん","not to mention ~ / ~ of course","N ＋ はもちろん","彼は日本語はもちろん、英語も上手だ。","He's good at English, not to mention Japanese.","週末はもちろん、平日も忙しい。","Weekdays are busy, not to mention weekends.","Addition / Emphasis"],
+  ["～をはじめ","starting with ~ / including (a key example)","N ＋ をはじめ（として）","東京をはじめ、日本には大都市が多い。","Japan has many big cities, starting with Tokyo.","校長先生をはじめ、多くの先生が集まった。","Many teachers gathered, beginning with the principal.","Addition / Emphasis"],
+  ["～に限らず（にかぎらず）","not limited to ~ / not only ~","N ＋ に限らず","若者に限らず、お年寄りもゲームを楽しむ。","Not only young people but the elderly too enjoy games.","週末に限らず、平日も混んでいる。","Not just weekends — it's crowded on weekdays too.","Addition / Emphasis"],
+  ["～さえ","even ~ (a surprising example)","N（＋particle）＋ さえ","そんなことは子供でさえ知っている。","Even a child knows something like that.","忙しくて、食事さえする時間がない。","I'm so busy I don't even have time to eat.","Addition / Emphasis"],
+  ["～こそ","precisely ~ / for sure (emphasis)","N ＋ こそ","今度こそ、成功したい。","This time for sure, I want to succeed.","こちらこそ、ありがとうございます。","It is I who should thank you.","Addition / Emphasis"],
+  ["～も～ば～も","both ~ and ~ / neither ~ nor ~","N+も ＋ V-ば ＋ N+も","彼は頭もよければ、性格もいい。","He's both smart and good-natured.","お金もなければ、時間もない。","I have neither money nor time.","Addition / Emphasis"],
+
+  // ---- Expressions (modal / set phrases) ----
+  ["～によって／～により／～による","depending on / by means of / due to / by (agent)","N ＋ によって","国によって習慣が違う。","Customs differ depending on the country.","この小説は有名な作家によって書かれた。","This novel was written by a famous author.","Expressions"],
+  ["～について","about / concerning ~","N ＋ について","日本の文化について研究しています。","I'm doing research about Japanese culture.","この問題について、みんなで話し合った。","We all discussed this problem together.","Expressions"],
+  ["～に対して（にたいして）","toward ~ / with respect to / in contrast to","N ＋ に対して","先生に対して失礼なことを言ってはいけない。","You mustn't say rude things to a teacher.","兄が静かなのに対して、弟はにぎやかだ。","In contrast to my quiet brother, my younger one is lively.","Expressions"],
+  ["～に関して（にかんして）","regarding / concerning ~ (formal)","N ＋ に関して","その件に関して、詳しく説明します。","I'll explain that matter in detail.","環境問題に関して、意見を述べた。","He stated his opinion regarding environmental issues.","Expressions"],
+  ["～において／～における","in / at ~ (a place, time, or situation; formal)","N ＋ において／における ＋ N","会議は東京において行われた。","The meeting was held in Tokyo.","現代社会における問題を考える。","I consider problems in modern society.","Expressions"],
+  ["～にとって","for / to ~ (from the standpoint of)","N ＋ にとって","私にとって、家族が一番大切だ。","For me, family is the most important thing.","子供にとって、遊びは大切だ。","For children, play is important.","Expressions"],
+  ["～として","as ~ (in the role or capacity of)","N ＋ として","彼は医者として働いている。","He works as a doctor.","留学生として日本に来た。","I came to Japan as an exchange student.","Expressions"],
+  ["～に基づいて（にもとづいて）","based on ~","N ＋ に基づいて","事実に基づいて記事を書いた。","I wrote the article based on the facts.","規則に基づいて処理する。","We handle it based on the rules.","Expressions"],
+  ["～に沿って（にそって）","along ~ / in line with ~","N ＋ に沿って","川に沿って歩いた。","I walked along the river.","計画に沿って進める。","We proceed in line with the plan.","Expressions"],
+  ["～に応じて（におうじて）","according to ~ / in response to ~","N ＋ に応じて","収入に応じて、税金を払う。","You pay taxes according to your income.","状況に応じて、対応を変える。","We change our approach according to the situation.","Expressions"],
+  ["～を通じて／～を通して","through ~ / throughout ~","N ＋ を通じて／を通して","インターネットを通じて、世界中の人と話せる。","Through the internet, you can talk with people worldwide.","一年を通して、この町は暖かい。","Throughout the year, this town stays warm.","Expressions"],
+  ["～かわりに（代わりに）","instead of ~ / in exchange for ~","V/A plain・N+の ＋ かわりに","父の代わりに、私が会議に出た。","I attended the meeting instead of my father.","手伝う代わりに、ご飯をおごって。","In exchange for helping, treat me to a meal.","Expressions"],
+  ["～おきに","at intervals of ~ / every other ~","N（number+counter）＋ おきに","この電車は10分おきに来る。","This train comes at 10-minute intervals.","一日おきにジョギングをする。","I go jogging every other day.","Expressions"],
+  ["～ごとに","every / each ~ (without exception)","V-dict・N ＋ ごとに","会うごとに、彼女は元気になっていく。","Each time we meet, she seems more energetic.","三日ごとに薬を飲む。","I take the medicine every three days.","Expressions"],
+  ["～向け（むけ）","intended for ~ / aimed at ~ (target)","N ＋ 向け","これは子供向けの本だ。","This is a book aimed at children.","初心者向けのコースを選んだ。","I chose a course intended for beginners.","Expressions"],
+  ["～向き（むき）","suited for ~ / facing ~","N ＋ 向き","この部屋は南向きで、明るい。","This room faces south and is bright.","この料理は子供向きだ。","This dish is suitable for children.","Expressions"],
+  ["～べきだ","should / ought to ~ (obligation)","V-dict ＋ べきだ（する→すべき）","約束は守るべきだ。","You should keep your promises.","もっと早く医者に行くべきだった。","I should have gone to the doctor sooner.","Expressions"],
+  ["～ことはない","there's no need to ~","V-dict ＋ ことはない","心配することはないよ。","There's no need to worry.","そんなに急ぐことはない。","There's no need to rush so much.","Expressions"],
+  ["～ことだ","should / the best thing is to ~ (advice)","V-dict／ない ＋ ことだ","上手になりたいなら、練習することだ。","If you want to improve, you should practice.","疲れたら、休むことだ。","If you're tired, the thing to do is rest.","Expressions"],
+  ["～わけだ","no wonder / that means / naturally ~","V/A plain・Na+な・N+の（という）＋ わけだ","電気が消えている。留守なわけだ。","The lights are off — that means nobody's home.","3年も勉強したのだから、上手なわけだ。","He studied for three years, so no wonder he's good.","Expressions"],
+  ["～わけではない","it doesn't mean that ~ / not necessarily","V/A plain・Na+な・N+の ＋ わけではない","嫌いなわけではないが、あまり食べない。","It's not that I dislike it, but I don't eat much of it.","全部わかるわけではない。","It's not as if I understand everything.","Expressions"],
+  ["～わけがない","there's no way that ~","V/A plain・Na+な・N+の ＋ わけがない","そんな高いものが買えるわけがない。","There's no way I can afford something that expensive.","彼が嘘をつくわけがない。","There's no way he would lie.","Expressions"],
+  ["～わけにはいかない","cannot ~ (for social or moral reasons)","V-dict ＋ わけにはいかない","明日は試験だから、休むわけにはいかない。","There's a test tomorrow, so I can't take the day off.","約束したから、行かないわけにはいかない。","I promised, so I can't just not go.","Expressions"],
+  ["～ざるをえない","have no choice but to ~ (formal)","V-ない (→ざる) ＋ をえない（する→せざるをえない）","台風だから、中止せざるをえない。","Because of the typhoon, we have no choice but to cancel.","上司の命令だから、従わざるをえない。","Since it's my boss's order, I have no choice but to obey.","Expressions"],
+  ["～しかない","have no choice but to ~ / only ~","V-dict ＋ しかない；N ＋ しかない","終電がないから、歩いて帰るしかない。","There's no last train, so I have no choice but to walk home.","方法はこれしかない。","This is the only way.","Expressions"],
+  ["～ようがない","there's no way to ~ (impossible)","V-masu ＋ ようがない","連絡先が分からないので、知らせようがない。","I don't know the contact info, so there's no way to tell them.","この壊れ方では、直しようがない。","Broken like this, there's no way to fix it.","Expressions"],
+  ["～きる／～きれない","do ~ completely / can't finish ~","V-masu ＋ きる／きれない","この本を一日で読みきった。","I finished reading this whole book in a day.","多すぎて、食べきれない。","It's too much — I can't finish eating it.","Expressions"],
+  ["～きり","only ~ / since (last time, nothing after)","V-た・N ＋ きり","彼とは去年会ったきりだ。","I haven't seen him since we met last year.","二人きりで話したい。","I want to talk just the two of us.","Expressions"],
+  ["～たがる","(third person) shows signs of wanting to ~","V-masu ＋ たがる","子供は外で遊びたがる。","Children want to play outside.","彼は何でも知りたがる。","He wants to know everything.","Expressions"],
+  ["～（さ）せる","causative: make / let someone do ~","V-causative（V-せる／させる）","母は妹に部屋を掃除させた。","Mother made my sister clean the room.","先生は学生に本を読ませた。","The teacher had the students read a book.","Expressions"],
+  ["～（さ）せられる","causative-passive: be made to do ~","V-causative-passive（V-せられる／させられる）","子供のとき、毎日ピアノを練習させられた。","As a child, I was made to practice piano every day.","上司にお酒を飲まされた。","I was made to drink alcohol by my boss.","Expressions"],
+  ["～（さ）せられる","causative-passive: be made to do ~","V-causative-passive","子供のとき、毎日ピアノを練習させられた。","As a child, I was made to practice piano every day.","上司にお酒を飲まされた。","I was made to drink alcohol by my boss.","Expressions"],
+  ["～ばよかった","should have ~ (regret)","V-ば ＋ よかった","もっと早く来ればよかった。","I should have come earlier.","あの時、彼に言えばよかった。","I should have told him back then.","Expressions"],
+  ["～たらいい／～といい","should ~ / I hope ~ (wish)","V-たら／と ＋ いい","どうしたらいいか分からない。","I don't know what I should do.","明日晴れるといいですね。","I hope it's sunny tomorrow.","Expressions"],
+  ["～に限る（にかぎる）","nothing beats ~ / the best thing is ~","V-dict／ない・N ＋ に限る","疲れたときは、寝るに限る。","When you're tired, nothing beats sleeping.","夏はビールに限る。","In summer, you can't beat a beer.","Expressions"],
+  ["～はともかく","putting aside ~ / regardless of ~","N ＋ はともかく","味はともかく、見た目はきれいだ。","Taste aside, it looks beautiful.","結果はともかく、よく頑張った。","Regardless of the result, you did your best.","Expressions"],
+  ["～というより","rather than ~ / more like ~","plain form ＋ というより","彼は優しいというより、気が弱い。","Rather than kind, he's more timid.","これは趣味というより、仕事だ。","This is more work than a hobby.","Expressions"],
+  ["～といえば／～というと","speaking of ~ / when it comes to ~","N ＋ といえば","京都といえば、お寺が有名だ。","Speaking of Kyoto, its temples are famous.","夏休みというと、海を思い出す。","When it comes to summer vacation, I think of the sea.","Expressions"],
+  ["～って","(casual) they say ~ / speaking of ~ (quote/topic)","plain form／N ＋ って","明日は休みだって。","They say tomorrow is a day off.","田中さんって、優しいね。","Tanaka is kind, isn't he.","Expressions"],
+  ["～ものだ","used to ~ / it's natural that / one should ~","V-dict／た・A・Na+な ＋ ものだ","子供のころ、よくこの川で泳いだものだ。","As a child, I used to swim in this river a lot.","時間は大切にするものだ。","One should value time.","Expressions"],
+  ["～ことか","how ~! (exclamation of degree)","疑問詞 ＋ V/A plain・Na+な ＋ ことか","どんなに心配したことか。","How worried I was!","何度言ったことか。","How many times have I said it!","Expressions"],
+  ["～たつもりで","with the assumption / as if you had ~","V-た ＋ つもりで","旅行したつもりで、貯金した。","I saved the money as if I'd gone on a trip.","死んだつもりで頑張ります。","I'll give it everything, as if my life depends on it.","Expressions"]
+];
+const GCAT_ORDER = ["Cause / Reason","Contrast / Concession","Time / Sequence","Condition",
+  "Purpose / Intention","Estimation / Hearsay","Change / Result","Manner / State",
+  "Degree / Extent","Addition / Emphasis","Expressions"];
+
 // ---------- STATE ----------
+let mode = "words";          // "words" | "grammar"
 let learned = new Set();
+let learnedG = new Set();
 let activeCat = "all";
 let query = "";
 let hideRead = false;
 let hideLearned = false;
 
-const STORE_KEY = "n3_learned";
+const STORE_KEY  = "n3_learned";
+const STORE_KEYG = "n3_learned_grammar";
+
+// ---------- helpers ----------
+const activeList = () => mode === "words" ? WORDS : GRAMMAR;
+const curLearned = () => mode === "words" ? learned : learnedG;
+const curCats    = () => mode === "words" ? CAT_ORDER : GCAT_ORDER;
+const catOf      = (it) => mode === "words" ? it[3] : it[7];
 
 // ---------- PERSISTENCE ----------
 async function loadLearned(){
-  try{
-    const r = await window.storage.get(STORE_KEY);
-    if(r && r.value){ learned = new Set(JSON.parse(r.value)); }
-  }catch(e){ /* first run / no key */ }
+  try{ const r = await window.storage.get(STORE_KEY);  if(r&&r.value) learned  = new Set(JSON.parse(r.value)); }catch(e){}
+  try{ const r = await window.storage.get(STORE_KEYG); if(r&&r.value) learnedG = new Set(JSON.parse(r.value)); }catch(e){}
 }
 async function saveLearned(){
-  try{ await window.storage.set(STORE_KEY, JSON.stringify([...learned])); }
-  catch(e){ /* storage unavailable, keep in-memory */ }
+  const key = mode === "words" ? STORE_KEY : STORE_KEYG;
+  try{ await window.storage.set(key, JSON.stringify([...curLearned()])); }catch(e){}
 }
 
 // ---------- RENDER ----------
@@ -493,15 +706,16 @@ const catsEl = document.getElementById('cats');
 
 function counts(){
   const c = {};
-  WORDS.forEach(w => c[w[3]] = (c[w[3]]||0)+1);
+  activeList().forEach(it => { const k = catOf(it); c[k] = (c[k]||0)+1; });
   return c;
 }
 
 function renderCats(){
   const c = counts();
-  let html = `<button class="pill ${activeCat==='all'?'on':''}" data-cat="all">All<span class="n">${WORDS.length}</span></button>`;
-  CAT_ORDER.forEach(cat=>{
-    html += `<button class="pill ${activeCat===cat?'on':''}" data-cat="${cat}">${cat}<span class="n">${c[cat]||0}</span></button>`;
+  let html = `<button class="pill ${activeCat==='all'?'on':''}" data-cat="all">All<span class="n">${activeList().length}</span></button>`;
+  curCats().forEach(cat=>{
+    if(!c[cat]) return;
+    html += `<button class="pill ${activeCat===cat?'on':''}" data-cat="${cat}">${cat}<span class="n">${c[cat]}</span></button>`;
   });
   catsEl.innerHTML = html;
   catsEl.querySelectorAll('.pill').forEach(p=>{
@@ -509,76 +723,93 @@ function renderCats(){
   });
 }
 
-function matches(w){
-  if(activeCat!=='all' && w[3]!==activeCat) return false;
-  if(hideLearned && learned.has(w[0])) return false;
+function matches(it){
+  if(activeCat!=='all' && catOf(it)!==activeCat) return false;
+  if(hideLearned && curLearned().has(it[0])) return false;
   if(query){
     const q = query.toLowerCase();
-    return w[0].includes(query) || w[1].includes(query) || w[2].toLowerCase().includes(q);
+    if(mode==='words') return it[0].includes(query)||it[1].includes(query)||it[2].toLowerCase().includes(q);
+    return it[0].includes(query)||it[1].toLowerCase().includes(q)||it[2].includes(query)
+      ||it[3].includes(query)||it[4].toLowerCase().includes(q)||it[5].includes(query)||it[6].toLowerCase().includes(q);
   }
   return true;
 }
 
-function cardHTML(w){
-  const isL = learned.has(w[0]);
-  return `<div class="card ${isL?'learned':''}" data-k="${w[0]}">
-    <div class="stamp" data-stamp="${w[0]}">済</div>
-    <div class="kanji jp">${w[0]}</div>
-    <div class="read jp-g">${w[1]}</div>
-    <div class="mean">${w[2]}</div>
+function cardHTML(it){
+  const isL = curLearned().has(it[0]);
+  if(mode==='words'){
+    return `<div class="card ${isL?'learned':''}" data-k="${it[0]}">
+      <div class="stamp" data-stamp="${it[0]}">済</div>
+      <div class="kanji jp">${it[0]}</div>
+      <div class="read jp-g">${it[1]}</div>
+      <div class="mean">${it[2]}</div>
+    </div>`;
+  }
+  return `<div class="gcard ${isL?'learned':''}">
+    <div class="stamp" data-stamp="${it[0]}">済</div>
+    <div class="pat jp-g">${it[0]}</div>
+    <div class="use">${it[1]}</div>
+    <div class="form jp-g">${it[2]}</div>
+    <div class="ex"><div class="jpx jp-g">${it[3]}</div><div class="enx">${it[4]}</div></div>
+    <div class="ex"><div class="jpx jp-g">${it[5]}</div><div class="enx">${it[6]}</div></div>
   </div>`;
 }
 
 function renderGrid(){
-  const list = WORDS.filter(matches);
+  const list = activeList().filter(matches);
   if(list.length===0){
-    main.innerHTML = `<div class="empty">No words match your search.</div>`;
+    main.innerHTML = `<div class="empty">No ${mode==='words'?'words':'grammar points'} match your search.</div>`;
     return;
   }
+  const gridClass = mode==='words' ? 'grid' : 'ggrid';
   let html = "";
-  const cats = activeCat==='all' ? CAT_ORDER : [activeCat];
+  const cats = activeCat==='all' ? curCats() : [activeCat];
   cats.forEach(cat=>{
-    const items = list.filter(w=>w[3]===cat);
+    const items = list.filter(it=>catOf(it)===cat);
     if(items.length===0) return;
-    html += `<div class="group-title">${cat}</div><div class="grid">`;
-    items.forEach(w=> html += cardHTML(w));
+    html += `<div class="group-title">${cat}</div><div class="${gridClass}">`;
+    items.forEach(it=> html += cardHTML(it));
     html += `</div>`;
   });
   main.innerHTML = html;
 
-  // card interactions
-  main.querySelectorAll('.card').forEach(card=>{
-    card.onclick = (e)=>{
-      if(e.target.dataset.stamp) return; // handled below
-      card.classList.toggle('peek');
-    };
-  });
+  if(mode==='words'){
+    main.querySelectorAll('.card').forEach(card=>{
+      card.onclick = (e)=>{
+        if(e.target.dataset.stamp) return;
+        card.classList.toggle('peek');
+      };
+    });
+  }
   main.querySelectorAll('.stamp').forEach(s=>{
     s.onclick = (e)=>{
       e.stopPropagation();
       const k = s.dataset.stamp;
-      if(learned.has(k)) learned.delete(k); else learned.add(k);
+      const set = curLearned();
+      if(set.has(k)) set.delete(k); else set.add(k);
       saveLearned();
-      const card = s.closest('.card');
+      const card = s.closest('.card,.gcard');
       card.classList.toggle('learned');
-      if(hideLearned && learned.has(k)) { renderGrid(); }
+      if(hideLearned && set.has(k)) { renderGrid(); }
       updateProgress();
     };
   });
 }
 
 function updateProgress(){
-  const total = WORDS.length;
-  const got = WORDS.filter(w=>learned.has(w[0])).length;
-  const pct = Math.round(got/total*100);
+  const total = activeList().length;
+  const set = curLearned();
+  const got = activeList().filter(it=>set.has(it[0])).length;
+  const pct = total ? Math.round(got/total*100) : 0;
   document.getElementById('pct').textContent = pct + '%';
   document.getElementById('barFill').style.width = pct + '%';
   document.getElementById('learnedCount').textContent = `${got} / ${total} learned`;
-  document.getElementById('total').textContent = `${total} N3 words`;
+  document.getElementById('total').textContent = mode==='words' ? `${total} N3 words` : `${total} N3 grammar points`;
 }
 
 // ---------- CONTROLS ----------
-document.getElementById('search').addEventListener('input', e=>{
+const searchInput = document.getElementById('search');
+searchInput.addEventListener('input', e=>{
   query = e.target.value.trim(); renderGrid();
 });
 document.getElementById('toggleRead').addEventListener('click', e=>{
@@ -594,6 +825,24 @@ document.getElementById('toggleLearned').addEventListener('click', e=>{
   renderGrid();
 });
 
+function switchMode(m){
+  if(m===mode) return;
+  mode = m;
+  activeCat = 'all'; query = ''; searchInput.value = '';
+  document.querySelectorAll('.modeswitch button').forEach(b=> b.classList.toggle('on', b.dataset.mode===m));
+  if(hideRead){ hideRead=false; document.body.classList.remove('hide-read');
+    const tr=document.getElementById('toggleRead'); tr.textContent='Hide readings'; tr.classList.remove('on'); }
+  document.getElementById('toggleRead').style.display = (m==='words') ? '' : 'none';
+  searchInput.placeholder = (m==='words')
+    ? 'Search kanji, reading, or meaning…'
+    : 'Search pattern, meaning, or example…';
+  document.querySelector('.eyebrow').textContent = (m==='words') ? 'JLPT N3 Vocabulary' : 'JLPT N3 Grammar';
+  renderCats(); renderGrid(); updateProgress();
+}
+document.querySelectorAll('.modeswitch button').forEach(b=>{
+  b.addEventListener('click', ()=> switchMode(b.dataset.mode));
+});
+
 // ---------- FLASHCARDS ----------
 const fc = document.getElementById('fc');
 const fcBody = document.getElementById('fcBody');
@@ -601,9 +850,9 @@ const fcProg = document.getElementById('fcProg');
 let deck = [], di = 0;
 
 function startFlash(){
-  // build deck from currently filtered set (respect category + hideLearned)
-  deck = WORDS.filter(matches);
-  if(deck.length===0) deck = WORDS.slice();
+  // build deck from currently filtered set (respect mode + category + hideLearned)
+  deck = activeList().filter(matches);
+  if(deck.length===0) deck = activeList().slice();
   // shuffle
   for(let i=deck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]];}
   di = 0;
@@ -612,20 +861,26 @@ function startFlash(){
 }
 function showCard(){
   if(di>=deck.length){ showDone(); return; }
-  const w = deck[di];
+  const it = deck[di];
   fcProg.textContent = `${di+1} / ${deck.length}`;
+  let front, back, gf = '', gb = '';
+  if(mode==='words'){
+    front = `<div class="big jp">${it[0]}</div>`;
+    back  = `<div class="read jp-g">${it[1]}</div><div class="mean">${it[2]}</div>
+             <div class="tap">Tap to flip back</div>`;
+  } else {
+    gf = ' gfront'; gb = ' gback';
+    front = `<div class="big jp-g">${it[0]}</div>`;
+    back  = `<div class="guse">${it[1]}</div>
+             <div class="gform jp-g">${it[2]}</div>
+             <div class="gex jp-g">${it[3]}<small>${it[4]}</small></div>
+             <div class="gex jp-g">${it[5]}<small>${it[6]}</small></div>`;
+  }
   fcBody.innerHTML = `
     <div class="flip" id="flip">
       <div class="flip-in">
-        <div class="face front">
-          <div class="big jp">${w[0]}</div>
-          <div class="tap">Tap to flip</div>
-        </div>
-        <div class="face back">
-          <div class="read jp-g">${w[1]}</div>
-          <div class="mean">${w[2]}</div>
-          <div class="tap">Tap to flip back</div>
-        </div>
+        <div class="face front${gf}">${front}<div class="tap">Tap to flip</div></div>
+        <div class="face back${gb}">${back}</div>
       </div>
     </div>
     <div class="fc-actions">
@@ -635,16 +890,17 @@ function showCard(){
   document.getElementById('flip').onclick = ()=> document.getElementById('flip').classList.toggle('flipped');
   document.getElementById('again').onclick = ()=>{ di++; showCard(); };
   document.getElementById('know').onclick = ()=>{
-    learned.add(w[0]); saveLearned(); updateProgress();
+    curLearned().add(it[0]); saveLearned(); updateProgress();
     di++; showCard();
   };
 }
 function showDone(){
-  const got = WORDS.filter(w=>learned.has(w[0])).length;
+  const set = curLearned();
+  const got = activeList().filter(it=>set.has(it[0])).length;
   fcProg.textContent = `${deck.length} / ${deck.length}`;
   fcBody.innerHTML = `<div class="fc-done">
     <h3>お疲れさま！ Deck complete</h3>
-    <p>You've reviewed ${deck.length} cards. ${got} words marked learned overall.</p>
+    <p>You've reviewed ${deck.length} cards. ${got} ${mode==='words'?'words':'grammar points'} marked learned overall.</p>
     <button id="fcRestart">Shuffle again</button>
   </div>`;
   document.getElementById('fcRestart').onclick = startFlash;
